@@ -1,0 +1,199 @@
+﻿@import 'tailwindcss';
+@import 'swiper/css';
+@import 'swiper/css/navigation';
+@import 'swiper/css/pagination';
+
+/* Configure dark mode to use class instead of media query (Tailwind v4) */
+@variant dark (&:where(.dark, .dark *));
+
+/* Custom CSS Variables for Light Mode */
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --secondary: #f59e0b;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-light: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --border: #e2e8f0;
+}
+
+/* Dark Mode Variables */
+.dark {
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-light: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+}
+
+/* Base styles */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  @apply antialiased transition-colors duration-300;
+}
+
+/* Light mode (default) */
+html:not(.dark) body {
+  @apply bg-slate-100 text-slate-900;
+}
+
+/* Dark mode */
+html.dark body {
+  @apply bg-slate-900 text-slate-100;
+}
+
+/* Light mode specific overrides */
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--surface-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--text-secondary);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-primary);
+}
+
+/* Custom utilities */
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-lg border transition-colors duration-300;
+  }
+  
+  /* Light mode glass */
+  html:not(.dark) .glass {
+    @apply bg-white/80 border-slate-200 shadow-lg shadow-slate-200/50;
+  }
+  
+  /* Dark mode glass */
+  html.dark .glass {
+    @apply bg-slate-800/50 border-slate-700/50;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl;
+  }
+  
+  html:not(.dark) .card-hover:hover {
+    @apply shadow-slate-300/50;
+  }
+  
+  html.dark .card-hover:hover {
+    @apply shadow-indigo-500/10;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Theme-aware text colors */
+  .text-theme-primary {
+    color: var(--text-primary);
+  }
+  
+  .text-theme-secondary {
+    color: var(--text-secondary);
+  }
+  
+  .bg-theme-surface {
+    background-color: var(--surface);
+  }
+  
+  .bg-theme-background {
+    background-color: var(--background);
+  }
+  
+  .border-theme {
+    border-color: var(--border);
+  }
+}
+
+/* Swiper Custom Styles */
+.tv-shows-swiper {
+  padding-bottom: 50px !important;
+}
+
+.tv-shows-swiper .swiper-pagination {
+  bottom: 0 !important;
+}
+
+.tv-shows-swiper .swiper-pagination-bullet {
+  @apply w-3 h-3 opacity-100;
+  background-color: var(--text-secondary);
+}
+
+.tv-shows-swiper .swiper-pagination-bullet-active {
+  @apply w-8 rounded-full;
+  background-color: var(--primary);
+}
+
+.tv-shows-swiper .swiper-button-prev,
+.tv-shows-swiper .swiper-button-next {
+  @apply w-8 h-8 transition-all;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.tv-shows-swiper .swiper-button-prev:hover,
+.tv-shows-swiper .swiper-button-next:hover {
+  color: var(--primary);
+}
+
+.tv-shows-swiper .swiper-button-prev::after,
+.tv-shows-swiper .swiper-button-next::after {
+  @apply text-base font-semibold;
+}
+
+/* Performance optimizations */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Image rendering optimization */
+img {
+  content-visibility: auto;
+}
+
+/* Prevent layout shift from font loading */
+body {
+  font-display: swap;
+}
