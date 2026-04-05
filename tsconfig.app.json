@@ -23,12 +23,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "ignoreDeprecations": "5.0",
 
-    /* Paths */
-    "baseUrl": ".",
+    /* Paths - handled by Vite */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
