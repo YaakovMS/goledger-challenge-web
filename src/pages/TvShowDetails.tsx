@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { seasonsService, episodesService, watchlistService } from '@/services';
 import type { Episode, Watchlist } from '@/types';
-import { PageLoader, EmptyState, Modal, Select, AddSeasonEpisodeModal } from '@/components/common';
+import { PageLoader, EmptyState, Modal, Select, AddSeasonEpisodeModal, Button } from '@/components/common';
 import { usePosterStore } from '@/stores/posterStore';
 import { useMediaImageStore } from '@/stores/mediaImageStore';
 import { useData } from '@/providers';
-import { ArrowLeft, Heart, HeartOff, Star, Calendar, Clock, Play, Plus } from 'lucide-react';
+import { ArrowLeft, Heart, Star, Calendar, Clock, Play, Plus, Check } from 'lucide-react';
 
 export default function TvShowDetailsPage() {
   const { key } = useParams<{ key: string }>();
@@ -19,6 +19,9 @@ export default function TvShowDetailsPage() {
   const [selectedSeasonKey, setSelectedSeasonKey] = useState<string>('');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
+  const [isWatchlistModalOpen, setIsWatchlistModalOpen] = useState(false);
+  const [selectedWatchlistKeys, setSelectedWatchlistKeys] = useState<Set<string>>(new Set());
+  const [initialWatchlistKeys, setInitialWatchlistKeys] = useState<Set<string>>(new Set());
 
   // Use centralized data from DataProvider
   const { 
@@ -99,33 +102,26 @@ export default function TvShowDetailsPage() {
     return showSeasons?.find(s => s['@key'] === selectedSeasonKey);
   }, [showSeasons, selectedSeasonKey]);
 
-  // Lógica de watchlist
-  const userWatchlist = watchlists && watchlists.length > 0 ? watchlists[0] : null;
-  const isInWatchlist = tvShow ? userWatchlist?.tvShows?.some((s) => s['@key'] === tvShow['@key']) : false;
+  // Lógica de watchlist - verificar se a série está em alguma watchlist
+  const isInAnyWatchlist = tvShow 
+    ? watchlists?.some(w => w.tvShows?.some(s => s['@key'] === tvShow['@key'])) 
+    : false;
   
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (!tvShow || !userWatchlist) return;
-      if (isInWatchlist) {
-        await watchlistService.removeTvShow(userWatchlist['@key'], tvShow['@key'], userWatchlist.tvShows?.map(s => s['@key']) || []);
-      } else {
-        await watchlistService.addTvShow(userWatchlist['@key'], tvShow['@key'], userWatchlist.tvShows?.map(s => s['@key']) || []);
-      }
+  // Add to watchlist mutation
+  const addToWatchlistMutation = useMutation({
+    mutationFn: ({ watchlistKey, showKey }: { watchlistKey: string; showKey: string }) => {
+      const watchlist = watchlists?.find((w) => w['@key'] === watchlistKey);
+      const currentShows = watchlist?.tvShows?.map((t) => t['@key']) || [];
+      return watchlistService.addTvShow(watchlistKey, showKey, currentShows);
     },
-    onMutate: async () => {
-      if (!tvShow || !userWatchlist) return;
+    onMutate: async ({ watchlistKey, showKey }) => {
       await queryClient.cancelQueries({ queryKey: ['watchlists'] });
       const previousWatchlists = queryClient.getQueryData(['watchlists']);
-      
       queryClient.setQueryData(['watchlists'], (old: Watchlist[] | undefined) => {
-        return old?.map(w => {
-          if (w['@key'] !== userWatchlist['@key']) return w;
-          if (isInWatchlist) {
-            return { ...w, tvShows: w.tvShows?.filter(t => t['@key'] !== tvShow['@key']) || [] };
-          } else {
-            return { ...w, tvShows: [...(w.tvShows || []), { '@key': tvShow['@key'], '@assetType': 'tvShows' }] };
-          }
-        }) || [];
+        return old?.map(w => w['@key'] === watchlistKey ? {
+          ...w,
+          tvShows: [...(w.tvShows || []), { '@key': showKey, '@assetType': 'tvShows' }],
+        } : w) || [];
       });
       return { previousWatchlists };
     },
@@ -138,6 +134,82 @@ export default function TvShowDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ['watchlists'] });
     },
   });
+
+  // Remove from watchlist mutation
+  const removeFromWatchlistMutation = useMutation({
+    mutationFn: ({ watchlistKey, showKey }: { watchlistKey: string; showKey: string }) => {
+      const watchlist = watchlists?.find((w) => w['@key'] === watchlistKey);
+      const currentShows = watchlist?.tvShows?.map((t) => t['@key']) || [];
+      return watchlistService.removeTvShow(watchlistKey, showKey, currentShows);
+    },
+    onMutate: async ({ watchlistKey, showKey }) => {
+      await queryClient.cancelQueries({ queryKey: ['watchlists'] });
+      const previousWatchlists = queryClient.getQueryData(['watchlists']);
+      queryClient.setQueryData(['watchlists'], (old: Watchlist[] | undefined) => {
+        return old?.map(w => w['@key'] === watchlistKey ? {
+          ...w,
+          tvShows: w.tvShows?.filter(t => t['@key'] !== showKey) || [],
+        } : w) || [];
+      });
+      return { previousWatchlists };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousWatchlists) {
+        queryClient.setQueryData(['watchlists'], context.previousWatchlists);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
+    },
+  });
+
+  // Abrir modal de watchlist
+  const handleOpenWatchlistModal = () => {
+    if (!tvShow) return;
+    const existingKeys = new Set(
+      watchlists
+        ?.filter((w) => w.tvShows?.some((t) => t['@key'] === tvShow['@key']))
+        .map((w) => w['@key']) || []
+    );
+    setSelectedWatchlistKeys(new Set(existingKeys));
+    setInitialWatchlistKeys(new Set(existingKeys));
+    setIsWatchlistModalOpen(true);
+  };
+
+  const handleCloseWatchlistModal = () => {
+    setIsWatchlistModalOpen(false);
+    setSelectedWatchlistKeys(new Set());
+    setInitialWatchlistKeys(new Set());
+  };
+
+  const handleToggleWatchlist = (watchlistKey: string) => {
+    setSelectedWatchlistKeys((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(watchlistKey)) {
+        newSet.delete(watchlistKey);
+      } else {
+        newSet.add(watchlistKey);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSaveWatchlistChanges = () => {
+    if (!tvShow) return;
+
+    const showKey = tvShow['@key'];
+    const toAdd = [...selectedWatchlistKeys].filter((k) => !initialWatchlistKeys.has(k));
+    const toRemove = [...initialWatchlistKeys].filter((k) => !selectedWatchlistKeys.has(k));
+
+    for (const watchlistKey of toAdd) {
+      addToWatchlistMutation.mutate({ watchlistKey, showKey });
+    }
+    for (const watchlistKey of toRemove) {
+      removeFromWatchlistMutation.mutate({ watchlistKey, showKey });
+    }
+
+    handleCloseWatchlistModal();
+  };
 
   // Mutation para adicionar apenas temporada
   const addSeasonMutation = useMutation({
@@ -321,29 +393,17 @@ export default function TvShowDetailsPage() {
                 </button>
 
                 {/* Botão Watchlist */}
-                {userWatchlist && (
-                  <button
-                    onClick={() => mutation.mutate()}
-                    disabled={mutation.isPending}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                      isInWatchlist
-                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                    }`}
-                  >
-                    {isInWatchlist ? (
-                      <>
-                        <HeartOff className="w-5 h-5" />
-                        Remover da Watchlist
-                      </>
-                    ) : (
-                      <>
-                        <Heart className="w-5 h-5" />
-                        Adicionar à Watchlist
-                      </>
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={handleOpenWatchlistModal}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+                    isInAnyWatchlist
+                      ? 'bg-red-500/90 text-white hover:bg-red-600'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isInAnyWatchlist ? 'fill-current' : ''}`} />
+                  Gerenciar Watchlists
+                </button>
               </div>
             </div>
           </div>
@@ -464,6 +524,93 @@ export default function TvShowDetailsPage() {
         onComplete={(data) => addContentMutation.mutate(data)}
         isLoading={addSeasonMutation.isPending || addEpisodesMutation.isPending || addContentMutation.isPending}
       />
+
+      {/* Modal de Gerenciar Watchlists */}
+      <Modal
+        isOpen={isWatchlistModalOpen}
+        onClose={handleCloseWatchlistModal}
+        title="Gerenciar Watchlists"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Selecione as listas para <strong className="text-slate-900 dark:text-slate-100">{tvShow.title}</strong>:
+          </p>
+          {watchlists && watchlists.length > 0 ? (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {watchlists.map((watchlist) => {
+                const isSelected = selectedWatchlistKeys.has(watchlist['@key']);
+                const wasInitiallySelected = initialWatchlistKeys.has(watchlist['@key']);
+                const hasChanged = isSelected !== wasInitiallySelected;
+                
+                return (
+                  <label
+                    key={watchlist['@key']}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border-2 ${
+                      isSelected
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500'
+                        : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
+                        isSelected
+                          ? 'bg-indigo-500 text-white'
+                          : 'bg-white dark:bg-slate-600 border-2 border-slate-300 dark:border-slate-500'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleWatchlist(watchlist['@key'])}
+                      className="sr-only"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-900 dark:text-slate-100 truncate block">
+                        {watchlist.title}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {watchlist.tvShows?.length || 0} séries
+                      </span>
+                    </div>
+                    {hasChanged && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        isSelected 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {isSelected ? '+ Adicionar' : '- Remover'}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-slate-500 dark:text-slate-400">
+              <p className="mb-2">Nenhuma watchlist encontrada.</p>
+              <p className="text-sm">Crie uma watchlist primeiro na página de Watchlists.</p>
+            </div>
+          )}
+          <div className="flex gap-3 justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+            <Button variant="secondary" onClick={handleCloseWatchlistModal}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveWatchlistChanges}
+              disabled={
+                [...selectedWatchlistKeys].sort().join(',') === [...initialWatchlistKeys].sort().join(',')
+              }
+              isLoading={addToWatchlistMutation.isPending || removeFromWatchlistMutation.isPending}
+              leftIcon={<Heart className="w-4 h-4" />}
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

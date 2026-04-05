@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Tv, Film, Clapperboard, List, ArrowRight } from 'lucide-react';
+import { Tv, List, ArrowRight } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { useData } from '@/providers';
@@ -13,20 +13,6 @@ const features = [
     description: 'Browse and manage your favorite TV shows collection',
     path: '/tv-shows',
     color: 'from-indigo-500 to-purple-600',
-  },
-  {
-    icon: Film,
-    title: 'Seasons',
-    description: 'Explore seasons and track your progress',
-    path: '/seasons',
-    color: 'from-emerald-500 to-teal-600',
-  },
-  {
-    icon: Clapperboard,
-    title: 'Episodes',
-    description: 'Dive into individual episodes and details',
-    path: '/episodes',
-    color: 'from-orange-500 to-red-600',
   },
   {
     icon: List,
@@ -181,7 +167,7 @@ export function HomePage() {
 
 
       {/* Features Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
         {features.map((feature) => {
           const Icon = feature.icon;
           return (
