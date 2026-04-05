@@ -62,6 +62,38 @@ export function HomePage() {
   return (
     <div className="space-y-12">
       
+      {/* Hero Section */}
+      <section className="text-center py-12">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-6">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse" />
+          Blockchain-powered streaming catalog
+        </div>
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+          Welcome to{' '}
+          <span className="bg-linear-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            StreamDB
+          </span>
+        </h1>
+        <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+          Your decentralized TV show catalog. Browse, discover, and manage your favorite
+          series with blockchain-backed data integrity.
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Link
+            to="/tv-shows"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
+          >
+            Explore TV Shows
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            to="/watchlist"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium transition-all border border-slate-300 dark:border-slate-700"
+          >
+            View Watchlist
+          </Link>
+        </div>
+      </section>
 
       {/* TV Shows Carousel */}
       {tvShows && tvShows.length > 0 && (
@@ -146,38 +178,7 @@ export function HomePage() {
         </section>
       )}
 
-{/* Hero Section */}
-      <section className="text-center py-12">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-6">
-          <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse" />
-          Blockchain-powered streaming catalog
-        </div>
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-          Welcome to{' '}
-          <span className="bg-linear-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            StreamDB
-          </span>
-        </h1>
-        <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
-          Your decentralized TV show catalog. Browse, discover, and manage your favorite
-          series with blockchain-backed data integrity.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Link
-            to="/tv-shows"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
-          >
-            Explore TV Shows
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            to="/watchlist"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium transition-all border border-slate-300 dark:border-slate-700"
-          >
-            View Watchlist
-          </Link>
-        </div>
-      </section>
+
 
       {/* Features Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
