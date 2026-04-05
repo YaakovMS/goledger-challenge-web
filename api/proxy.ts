@@ -14,9 +14,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Get the full URL path after /api/proxy
   const fullUrl = req.url || '';
-  // Extract path: /api/proxy/query/search -> /query/search
+  // Extract path: /api/proxy/api/query/search -> /api/query/search
   const targetPath = fullUrl.replace(/^\/api\/proxy/, '') || '/';
-  const targetUrl = `${API_BASE_URL}/api${targetPath}`;
+  // The targetPath already includes /api, so we don't add it again
+  const targetUrl = `${API_BASE_URL}${targetPath}`;
 
   console.log('Request URL:', fullUrl);
   console.log('Proxying to:', targetUrl);
