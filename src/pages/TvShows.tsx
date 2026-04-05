@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Tv, Users, Heart, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Tv, Users, Heart, Sparkles, Check } from 'lucide-react';
 import { tvShowsService, seasonsService, episodesService, watchlistService } from '@/services';
 import { useData } from '@/providers';
 import type { TvShow, TvShowFormData, Watchlist } from '@/types';
@@ -12,7 +12,6 @@ import {
   Modal,
   Input,
   TextArea,
-  Select,
   PageLoader,
   EmptyState,
   ConfirmDialog,
@@ -37,7 +36,8 @@ export function TvShowsPage() {
   const [isWatchlistModalOpen, setIsWatchlistModalOpen] = useState(false);
   const [selectedShow, setSelectedShow] = useState<TvShow | null>(null);
   const [watchlistTargetShow, setWatchlistTargetShow] = useState<TvShow | null>(null);
-  const [selectedWatchlistKey, setSelectedWatchlistKey] = useState<string>('');
+  const [selectedWatchlistKeys, setSelectedWatchlistKeys] = useState<Set<string>>(new Set());
+  const [initialWatchlistKeys, setInitialWatchlistKeys] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState<TvShowFormData>({
     title: '',
     description: '',
@@ -121,9 +121,6 @@ export function TvShowsPage() {
           tvShows: [...(w.tvShows || []), { '@key': showKey, '@assetType': 'tvShows' }],
         } : w) || [];
       });
-      setIsWatchlistModalOpen(false);
-      setWatchlistTargetShow(null);
-      setSelectedWatchlistKey('');
       return { previousWatchlists };
     },
     onError: (_err, _vars, context) => {
@@ -261,40 +258,62 @@ export function TvShowsPage() {
   const handleOpenWatchlistModal = (show: TvShow, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setWatchlistTargetShow(show);
-    setSelectedWatchlistKey('');
+    // Get watchlists that already contain this show
+    const existingKeys = new Set(
+      watchlists
+        ?.filter((w) => w.tvShows?.some((t) => t['@key'] === show['@key']))
+        .map((w) => w['@key']) || []
+    );
+    setSelectedWatchlistKeys(new Set(existingKeys));
+    setInitialWatchlistKeys(new Set(existingKeys));
     setIsWatchlistModalOpen(true);
   };
 
   const handleCloseWatchlistModal = () => {
     setIsWatchlistModalOpen(false);
     setWatchlistTargetShow(null);
-    setSelectedWatchlistKey('');
+    setSelectedWatchlistKeys(new Set());
+    setInitialWatchlistKeys(new Set());
+  };
+
+  const handleToggleWatchlist = (watchlistKey: string) => {
+    setSelectedWatchlistKeys((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(watchlistKey)) {
+        newSet.delete(watchlistKey);
+      } else {
+        newSet.add(watchlistKey);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSaveWatchlistChanges = async () => {
+    if (!watchlistTargetShow) return;
+
+    const showKey = watchlistTargetShow['@key'];
+    const toAdd = [...selectedWatchlistKeys].filter((key) => !initialWatchlistKeys.has(key));
+    const toRemove = [...initialWatchlistKeys].filter((key) => !selectedWatchlistKeys.has(key));
+
+    // Execute all mutations
+    for (const watchlistKey of toAdd) {
+      addToWatchlistMutation.mutate({ watchlistKey, showKey });
+    }
+    for (const watchlistKey of toRemove) {
+      removeFromWatchlistMutation.mutate({ watchlistKey, showKey });
+    }
+
+    handleCloseWatchlistModal();
   };
 
   const handleAddToWatchlist = () => {
-    if (watchlistTargetShow && selectedWatchlistKey) {
-      addToWatchlistMutation.mutate({
-        watchlistKey: selectedWatchlistKey,
-        showKey: watchlistTargetShow['@key'],
-      });
-    }
+    handleSaveWatchlistChanges();
   };
 
   const handleHeartClick = (show: TvShow, e: React.MouseEvent) => {
     e.stopPropagation();
-    const inWatchlists = getWatchlistsWithShow(show['@key']);
-    if (inWatchlists.length > 0) {
-      // Remove from all watchlists
-      inWatchlists.forEach((w) => {
-        removeFromWatchlistMutation.mutate({
-          watchlistKey: w['@key'],
-          showKey: show['@key'],
-        });
-      });
-    } else {
-      // Open modal to add to watchlist
-      handleOpenWatchlistModal(show, e);
-    }
+    // Always open the modal to manage watchlists
+    handleOpenWatchlistModal(show, e);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -510,42 +529,87 @@ export function TvShowsPage() {
       <Modal
         isOpen={isWatchlistModalOpen}
         onClose={handleCloseWatchlistModal}
-        title="Adicionar à Watchlist"
+        title="Gerenciar Watchlists"
         size="sm"
       >
         <div className="space-y-4">
           {watchlistTargetShow && (
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Selecione uma watchlist para adicionar <strong className="text-slate-900 dark:text-slate-100">{watchlistTargetShow.title}</strong>:
+              Selecione as listas para <strong className="text-slate-900 dark:text-slate-100">{watchlistTargetShow.title}</strong>:
             </p>
           )}
           {watchlists && watchlists.length > 0 ? (
-            <Select
-              label="Watchlist"
-              value={selectedWatchlistKey}
-              onChange={(e) => setSelectedWatchlistKey(e.target.value)}
-              options={[
-                { value: '', label: 'Selecione uma watchlist...' },
-                ...watchlists.map((w) => ({ value: w['@key'], label: w.title })),
-              ]}
-            />
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {watchlists.map((watchlist) => {
+                const isSelected = selectedWatchlistKeys.has(watchlist['@key']);
+                const wasInitiallySelected = initialWatchlistKeys.has(watchlist['@key']);
+                const hasChanged = isSelected !== wasInitiallySelected;
+                
+                return (
+                  <label
+                    key={watchlist['@key']}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border-2 ${
+                      isSelected
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500'
+                        : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
+                        isSelected
+                          ? 'bg-indigo-500 text-white'
+                          : 'bg-white dark:bg-slate-600 border-2 border-slate-300 dark:border-slate-500'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleWatchlist(watchlist['@key'])}
+                      className="sr-only"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-900 dark:text-slate-100 truncate block">
+                        {watchlist.title}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {watchlist.tvShows?.length || 0} séries
+                      </span>
+                    </div>
+                    {hasChanged && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        isSelected 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {isSelected ? '+ Adicionar' : '- Remover'}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
           ) : (
             <div className="text-center py-4 text-slate-500 dark:text-slate-400">
               <p className="mb-2">Nenhuma watchlist encontrada.</p>
               <p className="text-sm">Crie uma watchlist primeiro na página de Watchlists.</p>
             </div>
           )}
-          <div className="flex gap-3 justify-end pt-4">
+          <div className="flex gap-3 justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
             <Button variant="secondary" onClick={handleCloseWatchlistModal}>
               Cancelar
             </Button>
             <Button
               onClick={handleAddToWatchlist}
-              disabled={!selectedWatchlistKey}
-              isLoading={addToWatchlistMutation.isPending}
+              disabled={
+                // Disable if no changes were made
+                [...selectedWatchlistKeys].sort().join(',') === [...initialWatchlistKeys].sort().join(',')
+              }
+              isLoading={addToWatchlistMutation.isPending || removeFromWatchlistMutation.isPending}
               leftIcon={<Heart className="w-4 h-4" />}
             >
-              Adicionar
+              Salvar
             </Button>
           </div>
         </div>
