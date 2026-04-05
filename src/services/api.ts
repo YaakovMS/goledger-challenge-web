@@ -5,7 +5,7 @@ import type { SearchResponse, PaginatedResult, PaginationParams } from '@/types'
 const isDev = import.meta.env.DEV;
 const API_BASE_URL = isDev 
   ? 'http://ec2-50-19-36-138.compute-1.amazonaws.com'
-  : '';
+  : '/api/proxy';
 
 // Credentials - In production, these should be in environment variables
 // For now, we'll use a placeholder that the user will need to update

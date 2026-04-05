@@ -12,12 +12,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  // Get the path from the catch-all route
-  const { path } = req.query;
-  const targetPath = Array.isArray(path) ? path.join('/') : path || '';
-  const targetUrl = `${API_BASE_URL}/api/${targetPath}`;
+  // Get the full URL path after /api/proxy
+  const fullUrl = req.url || '';
+  // Extract path: /api/proxy/query/search -> /query/search
+  const targetPath = fullUrl.replace(/^\/api\/proxy/, '') || '/';
+  const targetUrl = `${API_BASE_URL}/api${targetPath}`;
 
-  console.log('Proxying request to:', targetUrl);
+  console.log('Request URL:', fullUrl);
+  console.log('Proxying to:', targetUrl);
 
   try {
     const fetchOptions: RequestInit = {
@@ -49,7 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Proxy error:', error);
     res.status(500).json({ 
       error: 'Proxy request failed', 
-      details: error instanceof Error ? error.message : String(error) 
+      details: error instanceof Error ? error.message : String(error),
+      targetUrl 
     });
   }
 }
