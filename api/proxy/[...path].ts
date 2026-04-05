@@ -15,7 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get the path from the catch-all route
   const { path } = req.query;
   const targetPath = Array.isArray(path) ? path.join('/') : path || '';
-  const targetUrl = `${API_BASE_URL}/${targetPath}`;
+  // Add /api/ prefix since the rewrite strips it
+  const targetUrl = `${API_BASE_URL}/api/${targetPath}`;
 
   console.log('Proxying request to:', targetUrl);
 
