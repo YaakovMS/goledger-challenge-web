@@ -60,11 +60,6 @@ export function TvShowsPage() {
     return getShowSeasons(showKey).length;
   };
 
-  // Get watchlists containing a show
-  const getWatchlistsWithShow = (showKey: string): Watchlist[] => {
-    return watchlists?.filter((w) => w.tvShows?.some((t) => t['@key'] === showKey)) || [];
-  };
-
   // Create mutation
   const createMutation = useMutation({
     mutationFn: tvShowsService.create,
